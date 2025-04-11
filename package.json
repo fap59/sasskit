@@ -1,0 +1,43 @@
+{
+  "name": "sass-kit",
+  "displayName": "Sass Kit",
+  "description": "Sass coding, simplified: auto-import and autocomplete in one tool.",
+  "icon":"logo.png",
+  "version": "1.0.0",
+  "publisher": "fap59",
+  "keywords": ["sass","scss","import","use","style","add use to sass","add use to scss","sass-kit","Sass Kit","sass kit","Sass-Kit","Sass kit","sass Kit","sass_kit","sasskit","SassKit","sassKit"],
+  "engines": {
+    "vscode": "^1.98.0"
+  },
+  "enableProposedApi": true,
+  "main": "./out/extension",
+  "activationEvents": [
+    "onCommand:extension.sassKit"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "extension.sassKit",
+        "title": "Sass Kit"
+      }
+    ]
+  },
+  "categories": [
+    "Other"
+  ],
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@types/vscode": "^1.98.0",
+    "typescript": "^4.5.0",
+    "vsce": "^2.4.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/fap59/sasskit"
+  }
+}
