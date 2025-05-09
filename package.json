@@ -3,7 +3,7 @@
   "displayName": "Sass Kit",
   "description": "Sass coding, simplified: auto-import and autocomplete in one tool.",
   "icon": "logo.png",
-  "version": "1.0.0",
+  "version": "1.1.3",
   "publisher": "fap59",
   "keywords": [
     "sass",
@@ -25,7 +25,7 @@
     "sassKit"
   ],
   "engines": {
-    "vscode": "^1.98.0"
+    "vscode": "^1.80.0"
   },
   "enableProposedApi": true,
   "main": "./out/extension",
@@ -57,5 +57,7 @@
   "repository": {
     "type": "git",
     "url": "http://github.com/fap59/sasskit"
-  }
+  },
+  "enableProposedApi": true,
+  "enable-proposed-api": ["fap59.sass-kit"]
 }

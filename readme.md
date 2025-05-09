@@ -26,6 +26,11 @@ While typing Sass variables, functions, or mixins, you'll see autocompletion sug
 
 This project is licensed under the **MIT License** – see the [LICENSE](LICENSE) file for details.
 
+## 🌐 More from us
+
+Explore **Miz**, our custom CSS framework, and other projects at: [eazymizy.com](https://eazymizy.com)
+
+
 ---
 
 Published by **fap59**
