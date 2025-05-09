@@ -13,9 +13,13 @@ Automatically inserts an `@use` statement for relevant Sass files at the top of 
 ### ⚡ Autocomplete
 While typing Sass variables, functions, or mixins, you'll see autocompletion suggestions from other Sass files in your workspace.
 
+### 🔄 Refresh Cache
+Click on the **Sass Cache** icon in the status bar to refresh the cache and update autocompletion items.
+
 ## 🛠️ Commands
 
 - **Sass Kit**: Adds an `@use` statement for a Sass file at the top of the current file.
+- **Sass Cache Refresh**: Refreshes the Sass autocomplete cache, making sure all variables, functions, and mixins are up to date.
 
 ## 📋 Requirements
 
@@ -29,7 +33,6 @@ This project is licensed under the **MIT License** – see the [LICENSE](LICENSE
 ## 🌐 More from us
 
 Explore **Miz**, our custom CSS framework, and other projects at: [eazymizy.com](https://eazymizy.com)
-
 
 ---
 

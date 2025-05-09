@@ -35,96 +35,104 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deactivate = exports.activate = void 0;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
+let sassCache = {};
+let isCacheReady = false;
 function activate(context) {
-    let enableAutoComplete = true;
-    let enableCommand = vscode.commands.registerCommand('extension.enableSassAutocomplete', () => __awaiter(this, void 0, void 0, function* () {
-        try {
-            enableAutoComplete = true;
-            vscode.window.showInformationMessage('✅ Sass Autocomplete has been enabled!');
-            return true;
-        }
-        catch (err) {
-            vscode.window.showErrorMessage('❌ Failed to enable Sass Autocomplete.');
-        }
-    }));
-    context.subscriptions.push(enableCommand);
-    let insertUseCommand = vscode.commands.registerCommand('extension.insertUseAtTop', (document, relativePath) => __awaiter(this, void 0, void 0, function* () {
-        const edit = new vscode.WorkspaceEdit();
-        const documentText = document.getText();
-        const lines = documentText.split('\n');
-        const escapedPath = relativePath.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-        const useRegex = new RegExp(`^\\s*@use\\s+["']${escapedPath}["'](?:\\s+as\\s+([^;]+))?\\s*;\\s*$`);
-        let found = false;
-        for (let i = 0; i < lines.length; i++) {
-            const match = lines[i].match(useRegex);
-            if (match) {
-                found = true;
-                // If `as` is not `*`, replace the line
-                if (match[1] !== '*') {
-                    const newUseLine = `@use "${relativePath}" as *;`;
-                    const range = new vscode.Range(new vscode.Position(i, 0), new vscode.Position(i, lines[i].length));
-                    edit.replace(document.uri, range, newUseLine);
-                    yield vscode.workspace.applyEdit(edit);
-                }
-                break;
-            }
-        }
-        if (!found) {
-            const firstLine = new vscode.Position(0, 0);
-            const useLine = `@use "${relativePath}" as *;`;
-            edit.insert(document.uri, firstLine, `${useLine}\n`);
+    return __awaiter(this, void 0, void 0, function* () {
+        const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+        statusBarItem.text = '$(refresh) Sass Cache';
+        statusBarItem.tooltip = 'Refresh Sass autocomplete cache';
+        statusBarItem.command = 'extension.refreshSassCache';
+        statusBarItem.show();
+        context.subscriptions.push(statusBarItem);
+        const refreshCommand = vscode.commands.registerCommand('extension.refreshSassCache', () => __awaiter(this, void 0, void 0, function* () {
+            yield refreshSassCache();
+            vscode.window.setStatusBarMessage('Sass Kit: Cache refreshed ✔️', 3000);
+        }));
+        context.subscriptions.push(refreshCommand);
+        const insertUseCommand = vscode.commands.registerCommand('extension.insertUseAtTop', (document, relPath) => __awaiter(this, void 0, void 0, function* () {
+            const edit = new vscode.WorkspaceEdit();
+            const isSassFile = document.fileName.endsWith('.sass');
+            const useStatement = `@use "${relPath}" as *${isSassFile ? '' : ';'}\n`;
+            const alreadyUsed = document.getText().includes(useStatement.trim());
+            if (alreadyUsed)
+                return;
+            const firstLine = document.lineAt(0);
+            edit.insert(document.uri, firstLine.range.start, useStatement);
             yield vscode.workspace.applyEdit(edit);
-        }
-    }));
-    context.subscriptions.push(insertUseCommand);
-    context.subscriptions.push(vscode.languages.registerCompletionItemProvider('scss', new SassCompletionProvider(() => enableAutoComplete), '$'));
-    context.subscriptions.push(vscode.languages.registerCompletionItemProvider('sass', new SassCompletionProvider(() => enableAutoComplete), '$'));
+        }));
+        context.subscriptions.push(insertUseCommand);
+        const provider = new SassCompletionProvider(() => isCacheReady);
+        context.subscriptions.push(vscode.languages.registerCompletionItemProvider(['scss', 'sass'], provider, '$', '@'));
+        yield refreshSassCache();
+    });
 }
 exports.activate = activate;
+function refreshSassCache() {
+    return __awaiter(this, void 0, void 0, function* () {
+        sassCache = {};
+        const sassFiles = yield vscode.workspace.findFiles('**/*.{sass,scss}');
+        for (const fileUri of sassFiles) {
+            const fileText = (yield vscode.workspace.openTextDocument(fileUri)).getText();
+            const variables = [...new Set(fileText.match(/\$[a-zA-Z0-9-_]+/g) || [])];
+            const functions = [...fileText.matchAll(/@function\s+([a-zA-Z0-9-_]+)/g)].map(m => m[1]);
+            const mixins = [...fileText.matchAll(/@mixin\s+([a-zA-Z0-9-_]+)/g)].map(m => m[1]);
+            sassCache[fileUri.fsPath] = {
+                variables: new Set(variables),
+                functions: new Set(functions),
+                mixins: new Set(mixins)
+            };
+        }
+        isCacheReady = true;
+    });
+}
 class SassCompletionProvider {
     constructor(isEnabled) {
         this.isEnabled = isEnabled;
     }
     provideCompletionItems(document, position) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (!this.isEnabled()) {
+            if (!this.isEnabled())
                 return [];
-            }
-            const currentFileDir = path.dirname(document.uri.fsPath);
-            const sassFiles = yield vscode.workspace.findFiles('**/*.{sass,scss}');
             const completions = [];
-            const variablesRegex = /\$[a-zA-Z0-9-_]+/g;
-            const functionsRegex = /@function\s+([a-zA-Z0-9-_]+)/g;
-            const mixinsRegex = /@mixin\s+([a-zA-Z0-9-_]+)/g;
-            for (const fileUri of sassFiles) {
-                const fileContent = yield vscode.workspace.openTextDocument(fileUri);
-                const fileText = fileContent.getText();
-                const relativePath = path.relative(currentFileDir, fileUri.fsPath)
+            const currentDir = path.dirname(document.uri.fsPath);
+            for (const filePath in sassCache) {
+                const relPath = path.relative(currentDir, filePath)
                     .replace(/\\/g, '/')
                     .replace(/\.(scss|sass)$/, '');
-                const addCompletion = (name, kind, insertText) => {
-                    const item = new vscode.CompletionItem(name, kind);
-                    item.insertText = insertText;
-                    item.detail = `From: ${relativePath}`;
-                    item.documentation = new vscode.MarkdownString(`**File:** \`${relativePath}\`\n\nAutomatically adds \`@use "${relativePath}" as *;\` at the top if missing.`);
+                const data = sassCache[filePath];
+                for (const variable of data.variables) {
+                    const item = new vscode.CompletionItem(variable, vscode.CompletionItemKind.Variable);
+                    item.insertText = variable;
+                    item.detail = `From: ${relPath}`;
                     item.command = {
                         command: 'extension.insertUseAtTop',
-                        title: 'Insert @use at top',
-                        arguments: [document, relativePath]
+                        title: 'Insert @use',
+                        arguments: [document, relPath]
                     };
                     completions.push(item);
-                };
-                const variables = fileText.match(variablesRegex);
-                if (variables) {
-                    for (const variable of new Set(variables)) {
-                        addCompletion(variable, vscode.CompletionItemKind.Variable, `$${variable.replace('$', '')}`);
-                    }
                 }
-                for (const [, funcName] of fileText.matchAll(functionsRegex)) {
-                    addCompletion(funcName, vscode.CompletionItemKind.Function, `${funcName}()`);
+                for (const func of data.functions) {
+                    const item = new vscode.CompletionItem(func, vscode.CompletionItemKind.Function);
+                    item.insertText = `${func}()`;
+                    item.detail = `From: ${relPath}`;
+                    item.command = {
+                        command: 'extension.insertUseAtTop',
+                        title: 'Insert @use',
+                        arguments: [document, relPath]
+                    };
+                    completions.push(item);
                 }
-                for (const [, mixinName] of fileText.matchAll(mixinsRegex)) {
-                    addCompletion(mixinName, vscode.CompletionItemKind.Method, `@include ${mixinName}();`);
+                for (const mixin of data.mixins) {
+                    const item = new vscode.CompletionItem(mixin, vscode.CompletionItemKind.Method);
+                    item.insertText = `@include ${mixin}();`;
+                    item.detail = `From: ${relPath}`;
+                    item.command = {
+                        command: 'extension.insertUseAtTop',
+                        title: 'Insert @use',
+                        arguments: [document, relPath]
+                    };
+                    completions.push(item);
                 }
             }
             return completions;
